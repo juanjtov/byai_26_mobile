@@ -2,7 +2,7 @@ import SwiftUI
 import RoomPlan
 
 struct ScanResultView: View {
-    @ObservedObject var manager: RoomPlanManager
+    @ObservedObject var scanState: ScanState
     @Environment(\.dismiss) private var dismiss
     @State private var showQuantitySheet = false
 
@@ -10,7 +10,7 @@ struct ScanResultView: View {
         NavigationStack {
             VStack(spacing: 20) {
                 // 3D preview of scanned room
-                if let capturedRoom = manager.capturedRoom {
+                if let capturedRoom = scanState.capturedRoom {
                     RoomPreviewView(room: capturedRoom)
                         .frame(height: 300)
                         .cornerRadius(12)
@@ -31,10 +31,10 @@ struct ScanResultView: View {
                         .font(.headline)
 
                     HStack {
-                        SummaryItem(label: "Quality", value: "\(Int(manager.qualityScore * 100))%")
-                        SummaryItem(label: "Walls", value: "\(manager.wallCount)")
-                        SummaryItem(label: "Doors", value: "\(manager.doorCount)")
-                        SummaryItem(label: "Windows", value: "\(manager.windowCount)")
+                        ScanSummaryItem(label: "Quality", value: "\(Int(scanState.qualityScore * 100))%")
+                        ScanSummaryItem(label: "Walls", value: "\(scanState.wallCount)")
+                        ScanSummaryItem(label: "Doors", value: "\(scanState.doorCount)")
+                        ScanSummaryItem(label: "Windows", value: "\(scanState.windowCount)")
                     }
                 }
                 .padding()
@@ -91,7 +91,7 @@ struct RoomPreviewView: View {
     }
 }
 
-struct SummaryItem: View {
+struct ScanSummaryItem: View {
     let label: String
     let value: String
 
@@ -109,5 +109,5 @@ struct SummaryItem: View {
 }
 
 #Preview {
-    ScanResultView(manager: RoomPlanManager())
+    ScanResultView(scanState: ScanState())
 }

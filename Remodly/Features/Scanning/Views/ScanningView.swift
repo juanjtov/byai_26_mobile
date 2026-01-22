@@ -9,18 +9,15 @@ struct ScanningView: View {
     @State private var showResults = false
     @State private var cameraPermissionGranted = false
     @State private var permissionChecked = false
-
-    // Check if RoomPlan is supported on this device
-    private var isRoomPlanSupported: Bool {
-        RoomCaptureSession.isSupported
-    }
+    @State private var isRoomPlanSupported = false
+    @State private var roomPlanCheckComplete = false
 
     var body: some View {
         NavigationStack {
             ZStack {
-                if !permissionChecked {
-                    // Loading state while checking permission
-                    ProgressView("Checking camera access...")
+                if !roomPlanCheckComplete || !permissionChecked {
+                    // Loading state while checking device and permission
+                    ProgressView("Checking device capabilities...")
                 } else if !isRoomPlanSupported {
                     // Simulator/unsupported device fallback
                     unsupportedDeviceView
@@ -65,9 +62,10 @@ struct ScanningView: View {
                 }
             }
             .sheet(isPresented: $showResults) {
-                ScanResultView(manager: RoomPlanManager())
+                ScanResultView(scanState: scanState)
             }
             .onAppear {
+                checkRoomPlanSupport()
                 checkCameraPermission()
             }
         }
@@ -120,6 +118,19 @@ struct ScanningView: View {
             }
             .buttonStyle(.borderedProminent)
             .padding(.top)
+        }
+    }
+
+    private func checkRoomPlanSupport() {
+        // Defer RoomPlan availability check to avoid crash on launch
+        Task { @MainActor in
+            // Small delay to ensure view is fully loaded
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+
+            // Check RoomPlan support on main actor
+            let supported = RoomCaptureSession.isSupported
+            isRoomPlanSupported = supported
+            roomPlanCheckComplete = true
         }
     }
 
@@ -253,15 +264,18 @@ class RoomCaptureCoordinator: NSObject, RoomCaptureSessionDelegate, RoomCaptureV
 }
 
 // UIViewRepresentable for RoomCaptureView
+@available(iOS 17.0, *)
 struct RoomCaptureViewContainer: UIViewRepresentable {
     @ObservedObject var scanState: ScanState
 
     func makeUIView(context: Context) -> RoomCaptureView {
         let view = RoomCaptureView()
+
+        // Configure delegates
         view.captureSession.delegate = context.coordinator
         view.delegate = context.coordinator
 
-        // Store reference and start capture
+        // Store reference and start capture immediately
         Task { @MainActor in
             scanState.captureView = view
             scanState.startCapture()

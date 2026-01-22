@@ -70,6 +70,10 @@ struct ProjectListView: View {
             projects = try await APIClient.shared.request(endpoint: .projects)
         } catch {
             print("Failed to load projects: \(error)")
+            #if DEBUG
+            // Use mock data in development when API is unavailable
+            projects = Project.mockProjects
+            #endif
         }
         isLoading = false
     }

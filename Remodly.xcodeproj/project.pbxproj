@@ -15,7 +15,6 @@
 		9964B50E2F1F5287008FFD6B /* ProjectListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9964B4E32F1F5287008FFD6B /* ProjectListView.swift */; };
 		9964B50F2F1F5287008FFD6B /* ProjectDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9964B4E22F1F5287008FFD6B /* ProjectDetailView.swift */; };
 		9964B5102F1F5287008FFD6B /* Project.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9964B4F82F1F5287008FFD6B /* Project.swift */; };
-		9964B5112F1F5287008FFD6B /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9964B4DA2F1F5287008FFD6B /* LoginView.swift */; };
 		9964B5122F1F5287008FFD6B /* StylePreset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9964B4FB2F1F5287008FFD6B /* StylePreset.swift */; };
 		9964B5132F1F5287008FFD6B /* QuantitySheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9964B4E62F1F5287008FFD6B /* QuantitySheetView.swift */; };
 		9964B5142F1F5287008FFD6B /* CreateProjectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9964B4E12F1F5287008FFD6B /* CreateProjectView.swift */; };
@@ -23,13 +22,11 @@
 		9964B5162F1F5287008FFD6B /* EstimateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9964B4DD2F1F5287008FFD6B /* EstimateView.swift */; };
 		9964B5172F1F5287008FFD6B /* DesignSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9964B4F62F1F5287008FFD6B /* DesignSnapshot.swift */; };
 		9964B5182F1F5287008FFD6B /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9964B4FF2F1F5287008FFD6B /* APIClient.swift */; };
-		9964B5192F1F5287008FFD6B /* SyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9964B5062F1F5287008FFD6B /* SyncService.swift */; };
 		9964B51A2F1F5287008FFD6B /* ScanningView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9964B4EA2F1F5287008FFD6B /* ScanningView.swift */; };
 		9964B51B2F1F5287008FFD6B /* SnapshotGalleryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9964B4F12F1F5287008FFD6B /* SnapshotGalleryView.swift */; };
 		9964B51C2F1F5287008FFD6B /* QuantitySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9964B4F92F1F5287008FFD6B /* QuantitySheet.swift */; };
 		9964B51D2F1F5287008FFD6B /* ScanGuidanceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9964B4E92F1F5287008FFD6B /* ScanGuidanceView.swift */; };
 		9964B51E2F1F5287008FFD6B /* ScanResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9964B4EB2F1F5287008FFD6B /* ScanResultView.swift */; };
-		9964B51F2F1F5287008FFD6B /* LocalStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9964B5042F1F5287008FFD6B /* LocalStorage.swift */; };
 		9964B5202F1F5287008FFD6B /* RoomPlanManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9964B4ED2F1F5287008FFD6B /* RoomPlanManager.swift */; };
 		9964B5212F1F5287008FFD6B /* Estimate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9964B4F72F1F5287008FFD6B /* Estimate.swift */; };
 		9964B5222F1F5287008FFD6B /* ShareView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9964B4DE2F1F5287008FFD6B /* ShareView.swift */; };
@@ -75,9 +72,49 @@
 		9964B5062F1F5287008FFD6B /* SyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		9964B52E2F2292A8008FFD6B /* Exceptions for "Remodly" folder in "Remodly" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				App/Configuration/Config.swift,
+				App/ContentView.swift,
+				App/MainTabView.swift,
+				App/RemodlyApp.swift,
+				Core/Constants.swift,
+				Features/Estimates/Views/EstimateView.swift,
+				Features/Estimates/Views/ShareView.swift,
+				Features/Projects/Views/CreateProjectView.swift,
+				Features/Projects/Views/ProjectDetailView.swift,
+				Features/Projects/Views/ProjectListView.swift,
+				Features/Quantities/Views/QuantitySheetView.swift,
+				Features/Scanning/RoomPlanManager.swift,
+				Features/Scanning/Views/ScanGuidanceView.swift,
+				Features/Scanning/Views/ScanningView.swift,
+				Features/Scanning/Views/ScanResultView.swift,
+				Features/Settings/SettingsView.swift,
+				Features/Styles/Views/SnapshotGalleryView.swift,
+				Features/Styles/Views/StyleSelectionView.swift,
+				Models/DesignSnapshot.swift,
+				Models/Estimate.swift,
+				Models/Project.swift,
+				Models/QuantitySheet.swift,
+				Models/RoomCapture.swift,
+				Models/StylePreset.swift,
+				Models/User.swift,
+				Services/API/APIClient.swift,
+				Services/API/APIEndpoints.swift,
+				Services/Auth/AuthService.swift,
+			);
+			target = 9964B4122F1F4CF0008FFD6B /* Remodly */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		9964B4152F1F4CF0008FFD6B /* Remodly */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				9964B52E2F2292A8008FFD6B /* Exceptions for "Remodly" folder in "Remodly" target */,
+			);
 			path = Remodly;
 			sourceTree = "<group>";
 		};
@@ -437,7 +474,6 @@
 				9964B50E2F1F5287008FFD6B /* ProjectListView.swift in Sources */,
 				9964B50F2F1F5287008FFD6B /* ProjectDetailView.swift in Sources */,
 				9964B5102F1F5287008FFD6B /* Project.swift in Sources */,
-				9964B5112F1F5287008FFD6B /* LoginView.swift in Sources */,
 				9964B5122F1F5287008FFD6B /* StylePreset.swift in Sources */,
 				9964B5132F1F5287008FFD6B /* QuantitySheetView.swift in Sources */,
 				9964B5142F1F5287008FFD6B /* CreateProjectView.swift in Sources */,
@@ -445,13 +481,11 @@
 				9964B5162F1F5287008FFD6B /* EstimateView.swift in Sources */,
 				9964B5172F1F5287008FFD6B /* DesignSnapshot.swift in Sources */,
 				9964B5182F1F5287008FFD6B /* APIClient.swift in Sources */,
-				9964B5192F1F5287008FFD6B /* SyncService.swift in Sources */,
 				9964B51A2F1F5287008FFD6B /* ScanningView.swift in Sources */,
 				9964B51B2F1F5287008FFD6B /* SnapshotGalleryView.swift in Sources */,
 				9964B51C2F1F5287008FFD6B /* QuantitySheet.swift in Sources */,
 				9964B51D2F1F5287008FFD6B /* ScanGuidanceView.swift in Sources */,
 				9964B51E2F1F5287008FFD6B /* ScanResultView.swift in Sources */,
-				9964B51F2F1F5287008FFD6B /* LocalStorage.swift in Sources */,
 				9964B5202F1F5287008FFD6B /* RoomPlanManager.swift in Sources */,
 				9964B5212F1F5287008FFD6B /* Estimate.swift in Sources */,
 				9964B5222F1F5287008FFD6B /* ShareView.swift in Sources */,
