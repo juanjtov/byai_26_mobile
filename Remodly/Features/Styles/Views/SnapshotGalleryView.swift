@@ -16,8 +16,8 @@ struct SnapshotGalleryView: View {
                     // Placeholder for actual rendered snapshot
                     LinearGradient(
                         colors: [
-                            Color(hex: style.palette.primary) ?? .gray,
-                            Color(hex: style.palette.secondary) ?? .white
+                            Color(hex: style.palette.primary),
+                            Color(hex: style.palette.secondary)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
@@ -123,8 +123,8 @@ struct AngleThumbnail: View {
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color(hex: style.palette.primary)?.opacity(0.8) ?? .gray,
-                                Color(hex: style.palette.secondary) ?? .white
+                                Color(hex: style.palette.primary).opacity(0.8),
+                                Color(hex: style.palette.secondary)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -138,12 +138,12 @@ struct AngleThumbnail: View {
             .frame(width: 80, height: 60)
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
-                    .stroke(isSelected ? Color.blue : Color.clear, lineWidth: 2)
+                    .stroke(isSelected ? Color.copper : Color.clear, lineWidth: 2)
             )
 
             Text(angle.displayName)
                 .font(.caption2)
-                .foregroundColor(isSelected ? .blue : .secondary)
+                .foregroundColor(isSelected ? .copper : .bodyText)
         }
     }
 

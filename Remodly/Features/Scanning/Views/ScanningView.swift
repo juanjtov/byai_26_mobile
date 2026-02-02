@@ -12,10 +12,24 @@ struct ScanningView: View {
     @State private var isRoomPlanSupported = false
     @State private var roomPlanCheckComplete = false
 
+    // Room type selection flow
+    @State private var selectedRoomType: RoomCapture.RoomType?
+    @State private var showRoomTypeSelection = true
+
     var body: some View {
         NavigationStack {
             ZStack {
-                if !roomPlanCheckComplete || !permissionChecked {
+                if showRoomTypeSelection {
+                    // Step 1: Room type selection
+                    RoomTypeSelectionView(
+                        selectedRoomType: $selectedRoomType
+                    ) {
+                        if let roomType = selectedRoomType {
+                            scanState.roomType = roomType
+                            showRoomTypeSelection = false
+                        }
+                    }
+                } else if !roomPlanCheckComplete || !permissionChecked {
                     // Loading state while checking device and permission
                     ProgressView("Checking device capabilities...")
                 } else if !isRoomPlanSupported {
@@ -25,33 +39,54 @@ struct ScanningView: View {
                     // Permission denied view
                     permissionDeniedView
                 } else {
-                    // RoomPlan capture view
-                    RoomCaptureViewContainer(scanState: scanState)
-                        .ignoresSafeArea()
+                    // Step 2: Active scanning
+                    ZStack {
+                        // RoomPlan capture view
+                        RoomCaptureViewContainer(scanState: scanState)
+                            .ignoresSafeArea()
 
-                    // Guidance overlay
-                    VStack {
-                        Spacer()
+                        // Guidance overlay
+                        VStack {
+                            Spacer()
 
-                        ScanGuidanceOverlay(scanState: scanState)
+                            ScanGuidanceOverlay(scanState: scanState)
+                                .padding()
+                                .background(.ultraThinMaterial)
+                                .cornerRadius(12)
+                                .padding()
+                        }
+
+                        // Large room guidance popup
+                        if scanState.isLargeRoomDetected {
+                            Color.black.opacity(0.5)
+                                .ignoresSafeArea()
+
+                            LargeRoomGuidanceView {
+                                scanState.dismissLargeRoomGuidance()
+                            }
                             .padding()
-                            .background(.ultraThinMaterial)
-                            .cornerRadius(12)
-                            .padding()
+                        }
                     }
                 }
             }
-            .navigationTitle("Scan Room")
+            .navigationTitle(showRoomTypeSelection ? "Select Room Type" : "Scan Room")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
+                        // Dismiss any open modal sheets first
+                        scanState.showNoOpeningsConfirmation = false
+                        scanState.isLargeRoomDetected = false
+
+                        // Stop capture
                         scanState.stopCapture()
+
+                        // Dismiss the view
                         dismiss()
                     }
                 }
 
-                if isRoomPlanSupported && cameraPermissionGranted {
+                if !showRoomTypeSelection && isRoomPlanSupported && cameraPermissionGranted {
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Done") {
                             scanState.stopCapture()
@@ -64,9 +99,29 @@ struct ScanningView: View {
             .sheet(isPresented: $showResults) {
                 ScanResultView(scanState: scanState)
             }
+            .sheet(isPresented: $scanState.showNoOpeningsConfirmation) {
+                NoOpeningsConfirmationSheet(
+                    roomType: scanState.roomType,
+                    onConfirm: {
+                        scanState.confirmNoOpenings()
+                    },
+                    onContinueScanning: {
+                        scanState.showNoOpeningsConfirmation = false
+                    }
+                )
+                .presentationDetents([.medium])
+            }
             .onAppear {
-                checkRoomPlanSupport()
-                checkCameraPermission()
+                if !showRoomTypeSelection {
+                    checkRoomPlanSupport()
+                    checkCameraPermission()
+                }
+            }
+            .onChange(of: showRoomTypeSelection) { _, showing in
+                if !showing {
+                    checkRoomPlanSupport()
+                    checkCameraPermission()
+                }
             }
         }
     }
@@ -171,7 +226,25 @@ class ScanState: ObservableObject {
     @Published var doorCount = 0
     @Published var windowCount = 0
 
+    // Room type context
+    @Published var roomType: RoomCapture.RoomType = .bathroom
+    @Published var hasConfirmedNoOpenings = false
+    @Published var estimatedRoomSize: ScanQualityConfiguration.RoomSize = .medium
+    @Published var showNoOpeningsConfirmation = false
+
+    // Large room guidance
+    @Published var isLargeRoomDetected = false
+    @Published var largeRoomGuidanceShown = false
+
     weak var captureView: RoomCaptureView?
+
+    private var qualityConfig: ScanQualityConfiguration {
+        ScanQualityConfiguration(
+            roomType: roomType,
+            estimatedRoomSize: estimatedRoomSize,
+            hasConfirmedNoOpenings: hasConfirmedNoOpenings
+        )
+    }
 
     func startCapture() {
         guard !isCapturing else { return }
@@ -181,9 +254,15 @@ class ScanState: ObservableObject {
     }
 
     func stopCapture() {
-        guard isCapturing else { return }
-        captureView?.captureSession.stop()
+        // Always set isCapturing to false, even if captureView is nil
         isCapturing = false
+
+        // Stop the capture session if available
+        captureView?.captureSession.stop()
+
+        // Reset any modal states that might block dismiss
+        showNoOpeningsConfirmation = false
+        isLargeRoomDetected = false
     }
 
     func updateStats(from room: CapturedRoom) {
@@ -192,22 +271,78 @@ class ScanState: ObservableObject {
         doorCount = room.doors.count
         windowCount = room.windows.count
 
+        // Estimate room size from floor area
+        estimateRoomSize(from: room)
+
+        // Update checklist with room-type awareness
         hasScannedPerimeter = room.walls.count >= 4
-        hasScannedOpenings = room.doors.count > 0 || room.windows.count > 0
+
+        // For rooms that typically lack openings, auto-complete or prompt
+        if roomType.typicallyHasWindows && !hasConfirmedNoOpenings {
+            hasScannedOpenings = room.doors.count > 0 || room.windows.count > 0
+        } else {
+            // For utility/bathroom: openings optional, prompt if none found after perimeter
+            hasScannedOpenings = hasConfirmedNoOpenings || room.doors.count > 0 || room.windows.count > 0
+
+            // Prompt user if perimeter complete but no openings
+            if hasScannedPerimeter && !hasScannedOpenings && !showNoOpeningsConfirmation && !hasConfirmedNoOpenings {
+                showNoOpeningsConfirmation = true
+            }
+        }
+
         hasScannedFixtures = !room.objects.isEmpty
         hasScannedCeiling = room.walls.contains { $0.dimensions.y > 2.0 }
 
         updateQualityScore()
     }
 
+    private func estimateRoomSize(from room: CapturedRoom) {
+        // Need at least 4 walls for reliable floor area calculation
+        guard room.walls.count >= 4 else { return }
+
+        let measurements = MeasurementExtractor.extract(from: room)
+        let floorArea = measurements.floorArea
+
+        // Validate floor area is reasonable (not NaN, not zero, not unrealistically huge)
+        guard floorArea.isFinite && floorArea > 0 && floorArea < 10000 else { return }
+
+        let newSize = ScanQualityConfiguration.roomSize(fromFloorArea: floorArea)
+
+        if newSize != estimatedRoomSize {
+            estimatedRoomSize = newSize
+
+            // Show large room guidance if detected for the first time
+            if newSize == .large && !largeRoomGuidanceShown {
+                isLargeRoomDetected = true
+            }
+        }
+    }
+
     private func updateQualityScore() {
+        let weights = qualityConfig.qualityWeights.normalized
         var score = 0.0
-        if hasScannedPerimeter { score += 0.25 }
-        if hasScannedOpenings { score += 0.25 }
-        if hasScannedFixtures { score += 0.25 }
-        if hasScannedCeiling { score += 0.25 }
+
+        if hasScannedPerimeter { score += weights.perimeterWeight }
+        if hasScannedOpenings { score += weights.openingsWeight }
+        if hasScannedFixtures { score += weights.fixturesWeight }
+        if hasScannedCeiling { score += weights.ceilingWeight }
+
         qualityScore = score
-        canFinish = score >= Constants.Scan.minimumQualityScore
+        canFinish = score >= qualityConfig.minimumQualityScore
+    }
+
+    /// Called when user confirms no openings in this room
+    func confirmNoOpenings() {
+        hasConfirmedNoOpenings = true
+        showNoOpeningsConfirmation = false
+        hasScannedOpenings = true
+        updateQualityScore()
+    }
+
+    /// Called when user dismisses large room guidance
+    func dismissLargeRoomGuidance() {
+        largeRoomGuidanceShown = true
+        isLargeRoomDetected = false
     }
 }
 
@@ -275,11 +410,10 @@ struct RoomCaptureViewContainer: UIViewRepresentable {
         view.captureSession.delegate = context.coordinator
         view.delegate = context.coordinator
 
-        // Store reference and start capture immediately
-        Task { @MainActor in
-            scanState.captureView = view
-            scanState.startCapture()
-        }
+        // Store reference and start capture synchronously
+        // This ensures captureView is available immediately for cancel to work
+        scanState.captureView = view
+        scanState.startCapture()
 
         return view
     }
@@ -291,12 +425,43 @@ struct RoomCaptureViewContainer: UIViewRepresentable {
     }
 }
 
-// Simplified guidance overlay that uses ScanState
+// Room-type-aware guidance overlay
 struct ScanGuidanceOverlay: View {
     @ObservedObject var scanState: ScanState
 
+    private var roomType: RoomCapture.RoomType {
+        scanState.roomType
+    }
+
+    private var showOpeningsItem: Bool {
+        // Show openings item if room typically has windows and user hasn't confirmed no openings
+        roomType.typicallyHasWindows && !scanState.hasConfirmedNoOpenings
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            // Room type indicator
+            HStack {
+                Image(systemName: roomType.icon)
+                    .foregroundColor(.copper)
+                Text(roomType.displayName)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                Spacer()
+
+                // Room size indicator for large rooms
+                if scanState.estimatedRoomSize == .large {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.left.and.right")
+                            .font(.caption)
+                        Text("Large")
+                            .font(.caption)
+                    }
+                    .foregroundColor(.gold)
+                }
+            }
+
             Text("Scan Checklist")
                 .font(.headline)
 
@@ -306,16 +471,26 @@ struct ScanGuidanceOverlay: View {
                 icon: "arrow.triangle.2.circlepath"
             )
 
-            ChecklistItem(
-                title: "Capture openings",
-                isCompleted: scanState.hasScannedOpenings,
-                icon: "door.left.hand.open"
-            )
+            // Conditional openings checklist item
+            if showOpeningsItem {
+                ChecklistItem(
+                    title: "Capture openings",
+                    isCompleted: scanState.hasScannedOpenings,
+                    icon: "door.left.hand.open"
+                )
+            } else if scanState.hasConfirmedNoOpenings {
+                ChecklistItem(
+                    title: "No openings (confirmed)",
+                    isCompleted: true,
+                    icon: "window.ceiling.closed"
+                )
+            }
 
+            // Room-type-specific fixture label
             ChecklistItem(
-                title: "Capture fixtures",
+                title: fixtureLabel,
                 isCompleted: scanState.hasScannedFixtures,
-                icon: "sink"
+                icon: fixtureIcon
             )
 
             ChecklistItem(
@@ -331,6 +506,24 @@ struct ScanGuidanceOverlay: View {
                 QualityIndicator(score: scanState.qualityScore)
             }
             .padding(.top, 8)
+        }
+    }
+
+    private var fixtureLabel: String {
+        switch roomType {
+        case .bathroom: return "Capture fixtures"
+        case .kitchen: return "Capture appliances"
+        case .utility: return "Capture appliances"
+        default: return "Capture objects"
+        }
+    }
+
+    private var fixtureIcon: String {
+        switch roomType {
+        case .bathroom: return "sink"
+        case .kitchen: return "refrigerator"
+        case .utility: return "washer"
+        default: return "cube"
         }
     }
 }

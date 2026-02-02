@@ -1,6 +1,6 @@
 import Foundation
 
-enum APIEndpoint {
+enum APIEndpoint: Sendable {
     // Auth
     case login
     case logout
@@ -38,7 +38,7 @@ enum APIEndpoint {
     // Allowances
     case allowanceBands(region: String, roomType: String, tier: String)
 
-    var path: String {
+    nonisolated var path: String {
         switch self {
         // Auth
         case .login:

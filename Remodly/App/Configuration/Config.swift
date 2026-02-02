@@ -1,14 +1,14 @@
 import Foundation
 
-enum Config {
-    enum API {
-        static var baseURL: String {
+enum Config: Sendable {
+    enum API: Sendable {
+        nonisolated(unsafe) static let baseURL: String = {
             #if DEBUG
             return "https://api-dev.remodly.com"
             #else
             return "https://api.remodly.com"
             #endif
-        }
+        }()
     }
 
     enum App {

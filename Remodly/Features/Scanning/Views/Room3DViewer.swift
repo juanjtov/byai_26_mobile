@@ -7,10 +7,26 @@ import simd
 struct Room3DViewer: View {
     let room: CapturedRoom
     let measurements: RoomMeasurements
+    @State private var zoomLevel: Float = 1.0
 
     var body: some View {
-        Room3DViewContainer(room: room, measurements: measurements)
-            .background(Color.black.opacity(0.9))
+        ZStack(alignment: .bottomTrailing) {
+            Room3DViewContainer(room: room, measurements: measurements, zoomLevel: $zoomLevel)
+                .background(Color.black.opacity(0.9))
+
+            // Zoom indicator
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .font(.caption)
+                Text(String(format: "%.1fx", zoomLevel))
+                    .font(.caption.monospacedDigit())
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(.ultraThinMaterial)
+            .cornerRadius(8)
+            .padding()
+        }
     }
 }
 
@@ -18,6 +34,11 @@ struct Room3DViewer: View {
 struct Room3DViewContainer: UIViewRepresentable {
     let room: CapturedRoom
     let measurements: RoomMeasurements
+    @Binding var zoomLevel: Float
+
+    func makeCoordinator() -> Room3DCoordinator {
+        Room3DCoordinator(zoomLevel: $zoomLevel)
+    }
 
     func makeUIView(context: Context) -> ARView {
         let arView = ARView(frame: .zero)
@@ -27,23 +48,42 @@ struct Room3DViewContainer: UIViewRepresentable {
         arView.environment.background = .color(.black.withAlphaComponent(0.9))
 
         // Create and add the room anchor
-        let roomAnchor = createRoomAnchor()
+        let roomAnchor = createRoomAnchor(coordinator: context.coordinator)
         arView.scene.addAnchor(roomAnchor)
+        context.coordinator.roomAnchor = roomAnchor
 
-        // Setup camera position
-        setupCamera(arView: arView)
+        // Setup camera position with coordinator
+        setupCamera(arView: arView, coordinator: context.coordinator)
 
         // Add ambient lighting
         setupLighting(arView: arView)
+
+        // Add gesture recognizers
+        let pinchGesture = UIPinchGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(Room3DCoordinator.handlePinch(_:))
+        )
+        arView.addGestureRecognizer(pinchGesture)
+
+        let panGesture = UIPanGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(Room3DCoordinator.handlePan(_:))
+        )
+        panGesture.minimumNumberOfTouches = 1
+        panGesture.maximumNumberOfTouches = 1
+        arView.addGestureRecognizer(panGesture)
+
+        context.coordinator.arView = arView
 
         return arView
     }
 
     func updateUIView(_ uiView: ARView, context: Context) {
-        // Updates not needed for static visualization
+        // Update label orientations to face camera (billboard effect)
+        context.coordinator.updateLabelOrientations()
     }
 
-    private func createRoomAnchor() -> AnchorEntity {
+    private func createRoomAnchor(coordinator: Room3DCoordinator) -> AnchorEntity {
         let anchor = AnchorEntity(world: .zero)
 
         // Calculate room center for proper positioning
@@ -58,13 +98,15 @@ struct Room3DViewContainer: UIViewRepresentable {
             // Add measurement label for this wall
             if index < measurements.wallDimensions.count {
                 let dims = measurements.wallDimensions[index]
-                if let labelEntity = createMeasurementLabel(
+                if let labelContainer = createMeasurementLabel(
                     text: String(format: "%.1f' x %.1f'", dims.width, dims.height),
                     surface: wall,
                     roomCenter: center,
-                    color: .white
+                    color: .white,
+                    backgroundColor: UIColor.black.withAlphaComponent(0.75)
                 ) {
-                    anchor.addChild(labelEntity)
+                    anchor.addChild(labelContainer)
+                    coordinator.measurementLabels.append(labelContainer)
                 }
             }
         }
@@ -78,13 +120,15 @@ struct Room3DViewContainer: UIViewRepresentable {
             // Add door measurement label
             if index < measurements.doorDimensions.count {
                 let dims = measurements.doorDimensions[index]
-                if let labelEntity = createMeasurementLabel(
+                if let labelContainer = createMeasurementLabel(
                     text: String(format: "D: %.1f' x %.1f'", dims.width, dims.height),
                     surface: door,
                     roomCenter: center,
-                    color: .orange
+                    color: .orange,
+                    backgroundColor: UIColor.black.withAlphaComponent(0.75)
                 ) {
-                    anchor.addChild(labelEntity)
+                    anchor.addChild(labelContainer)
+                    coordinator.measurementLabels.append(labelContainer)
                 }
             }
         }
@@ -98,13 +142,15 @@ struct Room3DViewContainer: UIViewRepresentable {
             // Add window measurement label
             if index < measurements.windowDimensions.count {
                 let dims = measurements.windowDimensions[index]
-                if let labelEntity = createMeasurementLabel(
+                if let labelContainer = createMeasurementLabel(
                     text: String(format: "W: %.1f' x %.1f'", dims.width, dims.height),
                     surface: window,
                     roomCenter: center,
-                    color: .cyan
+                    color: .cyan,
+                    backgroundColor: UIColor.black.withAlphaComponent(0.75)
                 ) {
-                    anchor.addChild(labelEntity)
+                    anchor.addChild(labelContainer)
+                    coordinator.measurementLabels.append(labelContainer)
                 }
             }
         }
@@ -282,57 +328,86 @@ struct Room3DViewContainer: UIViewRepresentable {
         return entity
     }
 
-    private func createMeasurementLabel(text: String, surface: CapturedRoom.Surface, roomCenter: simd_float3, color: UIColor) -> ModelEntity? {
+    private func createMeasurementLabel(
+        text: String,
+        surface: CapturedRoom.Surface,
+        roomCenter: simd_float3,
+        color: UIColor,
+        backgroundColor: UIColor = UIColor.black.withAlphaComponent(0.7)
+    ) -> Entity? {
         // Validate surface has usable data
         guard isValidSurface(surface) else {
             return nil
         }
 
+        // Create container entity for billboard behavior
+        let container = Entity()
+
+        // Larger font for better readability when zoomed
+        let fontSize: CGFloat = 0.12
+
         // Use a proper container frame to avoid crash with .zero
         let containerFrame = CGRect(x: 0, y: 0, width: 2.0, height: 0.5)
 
-        let mesh = MeshResource.generateText(
+        let textMesh = MeshResource.generateText(
             text,
-            extrusionDepth: 0.001,
-            font: .systemFont(ofSize: 0.08, weight: .medium),
+            extrusionDepth: 0.002,
+            font: .systemFont(ofSize: fontSize, weight: .bold),
             containerFrame: containerFrame,
             alignment: .center,
             lineBreakMode: .byTruncatingTail
         )
 
-        var material = SimpleMaterial()
-        material.color = .init(tint: color)
+        var textMaterial = SimpleMaterial()
+        textMaterial.color = .init(tint: color)
 
-        let entity = ModelEntity(mesh: mesh, materials: [material])
+        let textEntity = ModelEntity(mesh: textMesh, materials: [textMaterial])
+        textEntity.position = simd_float3(0, 0, 0.01) // Slightly in front of background
 
-        // Position label slightly in front of and above the surface center (with validation)
+        // Create background plane for contrast
+        let textWidth: Float = Float(text.count) * Float(fontSize) * 0.6
+        let bgWidth = max(textWidth + 0.1, 0.5)
+        let bgHeight: Float = Float(fontSize) * 1.8
+
+        let bgMesh = MeshResource.generatePlane(width: bgWidth, height: bgHeight, cornerRadius: 0.02)
+        var bgMaterial = SimpleMaterial()
+        bgMaterial.color = .init(tint: backgroundColor)
+
+        let bgEntity = ModelEntity(mesh: bgMesh, materials: [bgMaterial])
+        bgEntity.position = simd_float3(bgWidth / 2 - 0.05, Float(fontSize) * 0.5, 0) // Center behind text
+
+        container.addChild(bgEntity)
+        container.addChild(textEntity)
+
+        // Position label at wall midpoint, slightly in front
         var position = safePosition(from: surface.transform, relativeTo: roomCenter)
-        position.y += surface.dimensions.y / 2 + 0.1
-        position.z += 0.15
-        entity.position = position
+        position.y += surface.dimensions.y / 2 + 0.15
 
-        // Scale for visibility
-        entity.scale = simd_float3(repeating: 1.0)
+        // Move label outward from room center for visibility
+        let directionFromCenter = normalize(simd_float3(position.x, 0, position.z))
+        position.x += directionFromCenter.x * 0.2
+        position.z += directionFromCenter.z * 0.2
 
-        return entity
+        container.position = position
+
+        return container
     }
 
-    private func setupCamera(arView: ARView) {
+    private func setupCamera(arView: ARView, coordinator: Room3DCoordinator) {
         // Position camera for isometric-like view
         let cameraEntity = PerspectiveCamera()
         cameraEntity.camera.fieldOfViewInDegrees = 60
 
-        // Position camera at an isometric angle
-        let cameraDistance: Float = 6.0
-        let cameraHeight: Float = 4.0
-        cameraEntity.position = simd_float3(cameraDistance, cameraHeight, cameraDistance)
-
-        // Look at center
-        cameraEntity.look(at: .zero, from: cameraEntity.position, relativeTo: nil)
-
         let cameraAnchor = AnchorEntity(world: .zero)
         cameraAnchor.addChild(cameraEntity)
         arView.scene.addAnchor(cameraAnchor)
+
+        // Store references in coordinator for gesture handling
+        coordinator.cameraEntity = cameraEntity
+        coordinator.cameraAnchor = cameraAnchor
+
+        // Initialize camera position using spherical coordinates
+        coordinator.updateCameraPosition()
     }
 
     private func setupLighting(arView: ARView) {
@@ -347,6 +422,136 @@ struct Room3DViewContainer: UIViewRepresentable {
 
         lightAnchor.addChild(directionalLight)
         arView.scene.addAnchor(lightAnchor)
+    }
+}
+
+// MARK: - Coordinator for Gesture Handling
+
+class Room3DCoordinator: NSObject {
+    // Camera state (spherical coordinates)
+    var cameraDistance: Float = 8.0
+    var cameraYaw: Float = 0.785  // ~45 degrees
+    var cameraPitch: Float = 0.5  // ~30 degrees up
+
+    // Distance limits
+    private let minDistance: Float = 3.0
+    private let maxDistance: Float = 15.0
+
+    // Pitch limits (avoid gimbal lock)
+    private let minPitch: Float = 0.1
+    private let maxPitch: Float = 1.4  // ~80 degrees
+
+    // References
+    weak var arView: ARView?
+    var cameraEntity: PerspectiveCamera?
+    var cameraAnchor: AnchorEntity?
+    var roomAnchor: AnchorEntity?
+    var measurementLabels: [Entity] = []
+
+    // Gesture state
+    private var lastPinchScale: CGFloat = 1.0
+    private var lastPanLocation: CGPoint = .zero
+
+    // Binding for zoom level display
+    @Binding var zoomLevel: Float
+
+    init(zoomLevel: Binding<Float>) {
+        self._zoomLevel = zoomLevel
+        super.init()
+    }
+
+    @objc func handlePinch(_ gesture: UIPinchGestureRecognizer) {
+        switch gesture.state {
+        case .began:
+            lastPinchScale = gesture.scale
+
+        case .changed:
+            let scaleDelta = Float(gesture.scale / lastPinchScale)
+            lastPinchScale = gesture.scale
+
+            // Invert: pinch out = zoom in (smaller distance)
+            cameraDistance /= scaleDelta
+            cameraDistance = min(max(cameraDistance, minDistance), maxDistance)
+
+            // Update zoom level for UI display
+            DispatchQueue.main.async {
+                self.zoomLevel = self.maxDistance / self.cameraDistance
+            }
+
+            updateCameraPosition()
+            updateLabelOrientations()
+
+        case .ended, .cancelled:
+            lastPinchScale = 1.0
+
+        default:
+            break
+        }
+    }
+
+    @objc func handlePan(_ gesture: UIPanGestureRecognizer) {
+        guard let view = gesture.view else { return }
+
+        switch gesture.state {
+        case .began:
+            lastPanLocation = gesture.location(in: view)
+
+        case .changed:
+            let currentLocation = gesture.location(in: view)
+            let deltaX = Float(currentLocation.x - lastPanLocation.x)
+            let deltaY = Float(currentLocation.y - lastPanLocation.y)
+            lastPanLocation = currentLocation
+
+            // Sensitivity for rotation
+            let sensitivity: Float = 0.01
+
+            // Horizontal drag: rotate around Y-axis (yaw)
+            cameraYaw -= deltaX * sensitivity
+
+            // Vertical drag: tilt up/down (pitch)
+            cameraPitch += deltaY * sensitivity
+            cameraPitch = min(max(cameraPitch, minPitch), maxPitch)
+
+            updateCameraPosition()
+            updateLabelOrientations()
+
+        case .ended, .cancelled:
+            lastPanLocation = .zero
+
+        default:
+            break
+        }
+    }
+
+    func updateCameraPosition() {
+        guard let camera = cameraEntity else { return }
+
+        // Convert spherical coordinates to Cartesian
+        // x = r * cos(pitch) * sin(yaw)
+        // y = r * sin(pitch) + offset
+        // z = r * cos(pitch) * cos(yaw)
+        let x = cameraDistance * cos(cameraPitch) * sin(cameraYaw)
+        let y = cameraDistance * sin(cameraPitch) + 2.0  // Offset above floor
+        let z = cameraDistance * cos(cameraPitch) * cos(cameraYaw)
+
+        camera.position = simd_float3(x, y, z)
+        camera.look(at: simd_float3(0, 1, 0), from: camera.position, relativeTo: nil)
+    }
+
+    func updateLabelOrientations() {
+        guard let camera = cameraEntity else { return }
+
+        let cameraPos = camera.position
+
+        for label in measurementLabels {
+            // Billboard effect: make label face the camera
+            let labelPos = label.position
+            let direction = cameraPos - labelPos
+
+            // Only rotate around Y-axis to keep labels upright
+            let yawToCamera = atan2(direction.x, direction.z)
+            label.orientation = simd_quatf(angle: yawToCamera, axis: simd_float3(0, 1, 0))
+        }
     }
 }
 

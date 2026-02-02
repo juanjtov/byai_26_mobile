@@ -147,7 +147,7 @@ actor APIClient {
     }
 }
 
-enum HTTPMethod: String {
+enum HTTPMethod: String, Sendable {
     case get = "GET"
     case post = "POST"
     case put = "PUT"
@@ -155,7 +155,7 @@ enum HTTPMethod: String {
     case delete = "DELETE"
 }
 
-struct UploadResponse: Codable {
+struct UploadResponse: Codable, Sendable {
     let url: String
     let id: String
 }
