@@ -7,65 +7,78 @@ struct LoginView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 24) {
-                Spacer()
+            ZStack {
+                // Background
+                Color.obsidian
+                    .ignoresSafeArea()
 
-                // Logo
-                VStack(spacing: 8) {
-                    Image(systemName: "house.fill")
-                        .font(.system(size: 60))
-                        .foregroundColor(.blue)
+                VStack(spacing: RemodlySpacing.lg) {
+                    Spacer()
 
-                    Text("Remodly")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
+                    // Logo
+                    VStack(spacing: RemodlySpacing.sm) {
+                        Image(systemName: "house.fill")
+                            .font(.system(size: 60))
+                            .foregroundColor(.copper)
+                            .copperGlow()
 
-                    Text("On-site remodeling estimates")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
+                        Text("Remodly")
+                            .font(.remodlyLargeTitle)
+                            .foregroundColor(.ivory)
 
-                Spacer()
-
-                // Form
-                VStack(spacing: 16) {
-                    TextField("Email", text: $email)
-                        .textFieldStyle(.roundedBorder)
-                        .textContentType(.emailAddress)
-                        .autocapitalization(.none)
-                        .keyboardType(.emailAddress)
-
-                    SecureField("Password", text: $password)
-                        .textFieldStyle(.roundedBorder)
-                        .textContentType(.password)
-
-                    if let error = authService.error {
-                        Text(error)
-                            .foregroundColor(.red)
-                            .font(.caption)
+                        Text("On-site remodeling estimates")
+                            .font(.remodlySubhead)
+                            .foregroundColor(.bodyText)
                     }
 
-                    Button(action: login) {
-                        if authService.isLoading {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        } else {
-                            Text("Sign In")
+                    Spacer()
+
+                    // Form
+                    VStack(spacing: RemodlySpacing.md) {
+                        RemodlyTextField(
+                            placeholder: "Email",
+                            text: $email,
+                            icon: "envelope",
+                            keyboardType: .emailAddress,
+                            autocapitalization: .never
+                        )
+
+                        RemodlySecureField(
+                            placeholder: "Password",
+                            text: $password
+                        )
+
+                        if let error = authService.error {
+                            HStack {
+                                Image(systemName: "exclamationmark.circle")
+                                Text(error)
+                            }
+                            .font(.remodlyCaption)
+                            .foregroundColor(.errorText)
                         }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.blue)
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
-                    .disabled(authService.isLoading || email.isEmpty || password.isEmpty)
-                }
-                .padding(.horizontal)
 
-                Spacer()
+                        RemodlyButton(
+                            title: "Sign In",
+                            isLoading: authService.isLoading,
+                            isDisabled: email.isEmpty || password.isEmpty
+                        ) {
+                            login()
+                        }
+                        .copperGlow(intensity: 0.3)
+                    }
+                    .padding(.horizontal)
+
+                    Spacer()
+
+                    // Footer
+                    Text("Version 1.0.0")
+                        .font(.remodlyCaption)
+                        .foregroundColor(.bodyText)
+                }
+                .padding()
             }
-            .padding()
         }
+        .preferredColorScheme(.dark)
     }
 
     private func login() {

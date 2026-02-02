@@ -7,20 +7,34 @@ struct ProjectListView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if isLoading {
-                    ProgressView("Loading projects...")
-                } else if projects.isEmpty {
-                    emptyStateView
-                } else {
-                    projectList
+            ZStack {
+                Color.obsidian
+                    .ignoresSafeArea()
+
+                Group {
+                    if isLoading {
+                        VStack(spacing: RemodlySpacing.md) {
+                            ProgressView()
+                                .tint(.copper)
+                            Text("Loading projects...")
+                                .font(.remodlySubhead)
+                                .foregroundColor(.bodyText)
+                        }
+                    } else if projects.isEmpty {
+                        emptyStateView
+                    } else {
+                        projectList
+                    }
                 }
             }
             .navigationTitle("Projects")
+            .toolbarBackground(Color.obsidian, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button(action: { showCreateProject = true }) {
                         Image(systemName: "plus")
+                            .foregroundColor(.copper)
                     }
                 }
             }
@@ -31,33 +45,45 @@ struct ProjectListView: View {
                 await loadProjects()
             }
         }
+        .preferredColorScheme(.dark)
     }
 
     private var emptyStateView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: RemodlySpacing.md) {
             Image(systemName: "folder.badge.plus")
                 .font(.system(size: 60))
-                .foregroundColor(.secondary)
+                .foregroundColor(.copper)
+                .copperGlow(intensity: 0.3)
 
             Text("No Projects Yet")
-                .font(.headline)
+                .font(.remodlyTitle2)
+                .foregroundColor(.ivory)
 
             Text("Create your first project to get started")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+                .font(.remodlySubhead)
+                .foregroundColor(.bodyText)
 
-            Button("Create Project") {
+            RemodlyButton(
+                title: "Create Project",
+                icon: "plus",
+                fullWidth: false
+            ) {
                 showCreateProject = true
             }
-            .buttonStyle(.borderedProminent)
         }
+        .padding()
     }
 
     private var projectList: some View {
-        List(projects) { project in
-            NavigationLink(destination: ProjectDetailView(project: project)) {
-                ProjectRowView(project: project)
+        ScrollView {
+            LazyVStack(spacing: RemodlySpacing.sm) {
+                ForEach(projects) { project in
+                    NavigationLink(destination: ProjectDetailView(project: project)) {
+                        ProjectRowView(project: project)
+                    }
+                }
             }
+            .padding()
         }
         .refreshable {
             await loadProjects()
@@ -83,25 +109,31 @@ struct ProjectRowView: View {
     let project: Project
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(project.name)
-                .font(.headline)
+        RemodlyCard {
+            VStack(alignment: .leading, spacing: RemodlySpacing.sm) {
+                Text(project.name)
+                    .font(.remodlyHeadline)
+                    .foregroundColor(.ivory)
 
-            if let address = project.address {
-                Text(address)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
+                if let address = project.address {
+                    HStack(spacing: RemodlySpacing.xs) {
+                        Image(systemName: "location")
+                            .font(.remodlyCaption)
+                        Text(address)
+                            .font(.remodlySubhead)
+                    }
+                    .foregroundColor(.bodyText)
+                }
 
-            HStack {
-                StatusBadge(status: project.status)
-                Spacer()
-                Text(project.updatedAt, style: .date)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                HStack {
+                    StatusBadge(status: project.status)
+                    Spacer()
+                    Text(project.updatedAt, style: .date)
+                        .font(.remodlyCaption)
+                        .foregroundColor(.bodyText)
+                }
             }
         }
-        .padding(.vertical, 4)
     }
 }
 
@@ -110,12 +142,13 @@ struct StatusBadge: View {
 
     var body: some View {
         Text(statusText)
-            .font(.caption)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
+            .font(.remodlyCaption)
+            .fontWeight(.medium)
+            .padding(.horizontal, RemodlySpacing.sm)
+            .padding(.vertical, RemodlySpacing.xs)
             .background(statusColor.opacity(0.2))
             .foregroundColor(statusColor)
-            .cornerRadius(4)
+            .cornerRadius(RemodlyRadius.small)
     }
 
     private var statusText: String {
@@ -129,10 +162,10 @@ struct StatusBadge: View {
 
     private var statusColor: Color {
         switch status {
-        case .draft: return .gray
-        case .inProgress: return .blue
-        case .pendingReview: return .orange
-        case .completed: return .green
+        case .draft: return .bodyText
+        case .inProgress: return .copper
+        case .pendingReview: return .gold
+        case .completed: return .signal
         }
     }
 }

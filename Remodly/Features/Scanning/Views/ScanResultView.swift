@@ -107,7 +107,11 @@ struct ScanResultView: View {
                     QuantitySheetView(quantitySheet: sheet, roomType: scanState.roomType)
                 }
             }
-            .sheet(isPresented: $showAddFixtures) {
+            .sheet(isPresented: $showAddFixtures, onDismiss: {
+                // After adding fixtures, proceed to quantity sheet
+                showMissingFixturesPrompt = false
+                showQuantitySheet = true
+            }) {
                 if let sheet = Binding($quantitySheet) {
                     AddFixturesSheet(quantitySheet: sheet, roomType: scanState.roomType)
                 }

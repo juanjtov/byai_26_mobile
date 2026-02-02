@@ -10,84 +10,91 @@ struct StyleSelectionView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 20) {
-                Text("Choose a Style")
-                    .font(.title2)
-                    .fontWeight(.bold)
+            ZStack {
+                Color.obsidian
+                    .ignoresSafeArea()
 
-                Text("Select a design direction for your remodel")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+                VStack(spacing: RemodlySpacing.lg) {
+                    // Header
+                    VStack(spacing: RemodlySpacing.sm) {
+                        Text("Choose a Style")
+                            .font(.remodlyTitle1)
+                            .foregroundColor(.ivory)
 
-                // Style cards
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 16) {
-                        ForEach(styles) { style in
-                            StyleCard(
-                                style: style,
-                                isSelected: selectedStyle?.id == style.id
-                            )
-                            .onTapGesture {
-                                withAnimation {
-                                    selectedStyle = style
+                        Text("Select a design direction for your remodel")
+                            .font(.remodlySubhead)
+                            .foregroundColor(.bodyText)
+                    }
+
+                    // Style cards
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: RemodlySpacing.md) {
+                            ForEach(styles) { style in
+                                StyleCard(
+                                    style: style,
+                                    isSelected: selectedStyle?.id == style.id
+                                )
+                                .onTapGesture {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        selectedStyle = style
+                                    }
                                 }
                             }
                         }
+                        .padding(.horizontal)
                     }
+
+                    Spacer()
+
+                    // Selected style details
+                    if let style = selectedStyle {
+                        RemodlyCard {
+                            VStack(alignment: .leading, spacing: RemodlySpacing.sm) {
+                                Text(style.displayName)
+                                    .font(.remodlyHeadline)
+                                    .foregroundColor(.ivory)
+
+                                Text(style.description)
+                                    .font(.remodlySubhead)
+                                    .foregroundColor(.bodyText)
+
+                                // Color palette preview
+                                HStack(spacing: RemodlySpacing.sm) {
+                                    ColorSwatch(hex: style.palette.primary, label: "Primary")
+                                    ColorSwatch(hex: style.palette.secondary, label: "Secondary")
+                                    ColorSwatch(hex: style.palette.accent, label: "Accent")
+                                    ColorSwatch(hex: style.palette.neutral, label: "Neutral")
+                                }
+                                .padding(.top, RemodlySpacing.sm)
+                            }
+                        }
+                        .padding(.horizontal)
+                    }
+
+                    // Render button
+                    RemodlyButton(
+                        title: isRendering ? "Rendering..." : "Generate Snapshots",
+                        icon: "camera.aperture",
+                        isLoading: isRendering,
+                        isDisabled: selectedStyle == nil
+                    ) {
+                        renderSnapshots()
+                    }
+                    .copperGlow(intensity: selectedStyle != nil ? 0.4 : 0)
                     .padding(.horizontal)
                 }
-
-                Spacer()
-
-                // Selected style details
-                if let style = selectedStyle {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(style.displayName)
-                            .font(.headline)
-                        Text(style.description)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-
-                        // Color palette preview
-                        HStack(spacing: 8) {
-                            ColorSwatch(hex: style.palette.primary, label: "Primary")
-                            ColorSwatch(hex: style.palette.secondary, label: "Secondary")
-                            ColorSwatch(hex: style.palette.accent, label: "Accent")
-                            ColorSwatch(hex: style.palette.neutral, label: "Neutral")
-                        }
-                        .padding(.top, 8)
-                    }
-                    .padding()
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(12)
-                    .padding(.horizontal)
-                }
-
-                // Render button
-                Button(action: renderSnapshots) {
-                    if isRendering {
-                        HStack {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            Text("Rendering...")
-                        }
-                    } else {
-                        Text("Generate Snapshots")
-                    }
-                }
-                .frame(maxWidth: .infinity)
-                .buttonStyle(.borderedProminent)
-                .disabled(selectedStyle == nil || isRendering)
-                .padding(.horizontal)
+                .padding(.vertical)
             }
-            .padding(.vertical)
             .navigationTitle("Style Selection")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(Color.obsidian, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
                         dismiss()
                     }
+                    .foregroundColor(.copper)
                 }
             }
             .sheet(isPresented: $showSnapshots) {
@@ -96,6 +103,7 @@ struct StyleSelectionView: View {
                 }
             }
         }
+        .preferredColorScheme(.dark)
     }
 
     private func renderSnapshots() {
@@ -116,13 +124,13 @@ struct StyleCard: View {
     let isSelected: Bool
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: RemodlySpacing.sm) {
             // Style preview image placeholder
             ZStack {
                 LinearGradient(
                     colors: [
-                        Color(hex: style.palette.primary) ?? .gray,
-                        Color(hex: style.palette.secondary) ?? .white
+                        Color(hex: style.palette.primary),
+                        Color(hex: style.palette.secondary)
                     ],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
@@ -133,25 +141,27 @@ struct StyleCard: View {
                     .foregroundColor(.white.opacity(0.5))
             }
             .frame(width: 160, height: 120)
-            .cornerRadius(12)
+            .cornerRadius(RemodlyRadius.large)
 
             Text(style.displayName)
-                .font(.headline)
+                .font(.remodlyHeadline)
+                .foregroundColor(.ivory)
 
             Text(style.description)
-                .font(.caption)
-                .foregroundColor(.secondary)
+                .font(.remodlyCaption)
+                .foregroundColor(.bodyText)
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
         }
         .frame(width: 180)
         .padding()
-        .background(isSelected ? Color.blue.opacity(0.1) : Color.gray.opacity(0.05))
-        .cornerRadius(16)
+        .background(isSelected ? Color.copperSubtle : Color.ivorySubtle)
+        .cornerRadius(RemodlyRadius.large)
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(isSelected ? Color.blue : Color.clear, lineWidth: 2)
+            RoundedRectangle(cornerRadius: RemodlyRadius.large)
+                .stroke(isSelected ? Color.copper : Color.clear, lineWidth: 2)
         )
+        .copperGlow(intensity: isSelected ? 0.3 : 0)
     }
 }
 
@@ -160,38 +170,19 @@ struct ColorSwatch: View {
     let label: String
 
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: RemodlySpacing.xs) {
             Circle()
-                .fill(Color(hex: hex) ?? .gray)
+                .fill(Color(hex: hex))
                 .frame(width: 32, height: 32)
                 .overlay(
                     Circle()
-                        .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                        .stroke(Color.ivoryBorder, lineWidth: 1)
                 )
+
             Text(label)
-                .font(.caption2)
-                .foregroundColor(.secondary)
+                .font(.remodlyCaption)
+                .foregroundColor(.bodyText)
         }
-    }
-}
-
-// Color extension for hex support
-extension Color {
-    init?(hex: String) {
-        var hexSanitized = hex.trimmingCharacters(in: .whitespacesAndNewlines)
-        hexSanitized = hexSanitized.replacingOccurrences(of: "#", with: "")
-
-        var rgb: UInt64 = 0
-
-        guard Scanner(string: hexSanitized).scanHexInt64(&rgb) else {
-            return nil
-        }
-
-        self.init(
-            red: Double((rgb & 0xFF0000) >> 16) / 255.0,
-            green: Double((rgb & 0x00FF00) >> 8) / 255.0,
-            blue: Double(rgb & 0x0000FF) / 255.0
-        )
     }
 }
 
