@@ -44,6 +44,9 @@ struct ScanningView: View {
                         // RoomPlan capture view
                         RoomCaptureViewContainer(scanState: scanState)
                             .ignoresSafeArea()
+                            .onAppear {
+                                scanState.startCapture()
+                            }
 
                         // Guidance overlay
                         VStack {
@@ -410,10 +413,9 @@ struct RoomCaptureViewContainer: UIViewRepresentable {
         view.captureSession.delegate = context.coordinator
         view.delegate = context.coordinator
 
-        // Store reference and start capture synchronously
-        // This ensures captureView is available immediately for cancel to work
+        // Store reference for cancel to work
+        // Capture starts via .onAppear on the parent view
         scanState.captureView = view
-        scanState.startCapture()
 
         return view
     }

@@ -10,6 +10,7 @@ enum Constants {
         static let authTokenKey = "auth_token"
         static let organizationIdKey = "organization_id"
         static let userIdKey = "user_id"
+        static let snapshotDirectoryName = "design_snapshots"
     }
 
     enum Performance {

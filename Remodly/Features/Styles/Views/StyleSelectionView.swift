@@ -1,10 +1,14 @@
 import SwiftUI
+import RoomPlan
 
 struct StyleSelectionView: View {
+    let capturedRoom: CapturedRoom
     @Environment(\.dismiss) private var dismiss
     @State private var selectedStyle: StylePreset?
     @State private var isRendering = false
     @State private var showSnapshots = false
+    @State private var renderedSnapshots: [DesignSnapshot] = []
+    @State private var renderError: String?
 
     let styles = StylePreset.allPresets
 
@@ -99,22 +103,42 @@ struct StyleSelectionView: View {
             }
             .sheet(isPresented: $showSnapshots) {
                 if let style = selectedStyle {
-                    SnapshotGalleryView(style: style)
+                    SnapshotGalleryView(
+                        style: style,
+                        snapshots: renderedSnapshots,
+                        capturedRoom: capturedRoom
+                    )
                 }
             }
         }
         .preferredColorScheme(.dark)
+        .alert("Rendering Error", isPresented: .init(
+            get: { renderError != nil },
+            set: { if !$0 { renderError = nil } }
+        )) {
+            Button("OK") { renderError = nil }
+        } message: {
+            Text(renderError ?? "An unknown error occurred")
+        }
     }
 
     private func renderSnapshots() {
-        guard selectedStyle != nil else { return }
+        guard let style = selectedStyle else { return }
 
         isRendering = true
+        renderError = nil
 
-        // Simulate rendering time
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            isRendering = false
-            showSnapshots = true
+        Task {
+            do {
+                let renderer = StyledRoomRenderer(room: capturedRoom, style: style)
+                let snapshots = try await renderer.renderAllAngles()
+                renderedSnapshots = snapshots
+                isRendering = false
+                showSnapshots = true
+            } catch {
+                renderError = error.localizedDescription
+                isRendering = false
+            }
         }
     }
 }
@@ -186,6 +210,10 @@ struct ColorSwatch: View {
     }
 }
 
+// Preview requires CapturedRoom data from a real scan
 #Preview {
-    StyleSelectionView()
+    Text("StyleSelectionView Preview\n(requires CapturedRoom from scan)")
+        .foregroundColor(.white)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.obsidian)
 }

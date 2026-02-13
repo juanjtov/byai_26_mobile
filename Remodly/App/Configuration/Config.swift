@@ -2,7 +2,7 @@ import Foundation
 
 enum Config: Sendable {
     enum API: Sendable {
-        nonisolated(unsafe) static let baseURL: String = {
+        static let baseURL: String = {
             #if DEBUG
             return "https://api-dev.remodly.com"
             #else

@@ -1,8 +1,10 @@
 import SwiftUI
+import RoomPlan
 
 struct QuantitySheetView: View {
     @Binding var quantitySheet: QuantitySheet
     var roomType: RoomCapture.RoomType = .bathroom
+    let capturedRoom: CapturedRoom
     @Environment(\.dismiss) private var dismiss
 
     @State private var isEditing = false
@@ -169,7 +171,7 @@ struct QuantitySheetView: View {
                 }
             }
             .sheet(isPresented: $showStyleSelection) {
-                StyleSelectionView()
+                StyleSelectionView(capturedRoom: capturedRoom)
             }
             .sheet(isPresented: $showAddFixtures) {
                 AddFixturesSheet(quantitySheet: $quantitySheet, roomType: roomType)
@@ -341,28 +343,10 @@ struct FixtureRow: View {
 
 // MARK: - Preview
 
+// Preview requires CapturedRoom data from a real scan
 #Preview {
-    QuantitySheetView(quantitySheet: .constant(
-        QuantitySheet(
-            id: "preview",
-            roomCaptureId: "capture_1",
-            version: 1,
-            floorArea: 48.5,
-            wallArea: 186.2,
-            perimeterLength: 27.8,
-            ceilingHeight: 9.0,
-            doorCount: 1,
-            doorSizes: [QuantitySheet.DoorSize(width: 32, height: 80)],
-            windowCount: 1,
-            windowSizes: [QuantitySheet.WindowSize(width: 36, height: 48)],
-            fixtures: [
-                QuantitySheet.Fixture(id: "1", type: .toilet, count: 1),
-                QuantitySheet.Fixture(id: "2", type: .vanity, count: 1),
-                QuantitySheet.Fixture(id: "3", type: .shower, count: 1)
-            ],
-            isLocked: false,
-            createdAt: Date(),
-            updatedAt: Date()
-        )
-    ))
+    Text("QuantitySheetView Preview\n(requires CapturedRoom from scan)")
+        .foregroundColor(.white)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.obsidian)
 }

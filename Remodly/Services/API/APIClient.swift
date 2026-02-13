@@ -155,7 +155,20 @@ enum HTTPMethod: String, Sendable {
     case delete = "DELETE"
 }
 
-struct UploadResponse: Codable, Sendable {
+struct UploadResponse: Sendable {
     let url: String
     let id: String
+}
+
+extension UploadResponse: Decodable {
+    enum CodingKeys: String, CodingKey {
+        case url
+        case id
+    }
+
+    nonisolated init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        url = try container.decode(String.self, forKey: .url)
+        id = try container.decode(String.self, forKey: .id)
+    }
 }
